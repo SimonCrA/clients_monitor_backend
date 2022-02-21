@@ -1,25 +1,11 @@
-const UsersController = require('../controllers/users.controller')
-const AuthorizationMiddleware = require('../middlewares/authorization.middleware')
+const { disableById, getById, insert, list, patchById, removeById } = require('../controllers/users.controller')
+const { verifyValidJWT } = require('../middlewares/authorization.middleware')
 
 exports.routesConfig = (app) => {
-
-  app.post('/api/users',[
-    AuthorizationMiddleware.verifyValidJWT
-  ], UsersController.insert)
-  app.patch('/api/users/:userId',[
-    AuthorizationMiddleware.verifyValidJWT
-  ], UsersController.patchById)
-  app.get('/api/users',[
-    AuthorizationMiddleware.verifyValidJWT
-  ], UsersController.list)
-  app.get('/api/users/:userId',[
-    AuthorizationMiddleware.verifyValidJWT
-  ], UsersController.getById)
-  app.delete('/api/users/:userId',[
-    AuthorizationMiddleware.verifyValidJWT
-  ], UsersController.disableById)
-  app.delete('/api/users/delete/:userId',[
-    AuthorizationMiddleware.verifyValidJWT
-  ], UsersController.removeById)
-  
+  app.post('/api/users', [verifyValidJWT], insert)
+  app.patch('/api/users/:userId', [verifyValidJWT], patchById)
+  app.get('/api/users', [verifyValidJWT], list)
+  app.get('/api/users/:userId', [verifyValidJWT], getById)
+  app.delete('/api/users/:userId', [verifyValidJWT], disableById)
+  app.delete('/api/users/delete/:userId', [verifyValidJWT], removeById)
 }

@@ -1,186 +1,185 @@
 require('../config/env.config')
-const User = require('../models/users.model')
-const { signUpValidation, logInValidation } = require('../middlewares/auth.validation.data')
 const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken')
+const { validationResult } = require('express-validator')
 
-let refreshTokens = []
+const User = require('../models/users.model')
+const { findUserByEmailService } = require('../services/users.service')
+const {
+  generateTokenService,
+  verifyTokenService,
+  findWhitelistedTokenService,
+  saveTokenToWhitelistService,
+  updateTokenStatusService
+} = require('../services/util.service')
 
 exports.signUp = async (req, res) => {
-  
-  let body = req.body;
-  //Validation
-  const {error} = await signUpValidation(body)
+  try {
+    let body = req.body
 
-  if (error) {
-    return res.status(400).json({
-      ok: false,
-      err: error.details[0].message
-    })
-  }
-  // console.log(body);
-
-  //hash Password
-  const hashedPassword = await bcrypt.hashSync(body.password, 10)
-
-  //Create the user and generate token
-  User.create({
-    name: body.name,
-    nickname: body.nickname,
-    lastname: body.lastname,
-    email: body.email,
-    address: body.address,
-    password: hashedPassword
-  },
-  function (err, user) {
-
-    if (err) {
-      return res.status(500).json({
+    //Validations
+    const validationErrors = validationResult(req)
+    if (!validationErrors.isEmpty()) {
+      return res.status(400).json({
         ok: false,
-        err: err.errors
+        err: validationErrors.mapped()
       })
     }
-    //Create access-token
-    const accessToken = jwt.sign(
-      {
-        _id: user._id
-      },
-      process.env.SEED_AUTH,
-      {
-        expiresIn: process.env.TOKEN_EXPIRY
-      }
-    )    
-    //Create refresh-token
-    const refreshToken = jwt.sign(
-      {
-        _id: user._id
-      },
-      process.env.SEED_AUTH_REFRESH
-    ) 
-    
-    refreshTokens.push(refreshToken)
+
+    //hash Password
+    const hashedPassword = await bcrypt.hashSync(req.body.password, 10)
+
+    const userData = {
+      name: body.name,
+      nickname: body.nickname,
+      lastname: body.lastname,
+      email: body.email,
+      address: body.address,
+      password: hashedPassword
+    }
+    //Create the user and generate token
+    const user = await User.create(userData).catch((_error) => {
+      throw new Error(`Controller ${_error.message}`)
+    })
+
+    const [accessToken, refreshToken] = generateTokenService(user._id)
+
+    // we save the token into the white list
+    const tokenWhitelisted = await saveTokenToWhitelistService(refreshToken).catch((_error) => {
+      throw new Error(`Controller ${_error.message}`)
+    })
 
     res.status(201).json({
       ok: true,
       user: user._id,
       access_token: accessToken,
       refresh_token: refreshToken
-    });
-  })
-
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false
+    })
+  }
 }
 
 exports.logIn = async (req, res) => {
+  try {
+    let { email, password } = req.body
 
-  let body = req.body;
-
-  //Validation
-  const { error } = logInValidation(body)
- 
-  if (error) {
-    return res.status(400).json({
-      ok: false,
-      err: error.details[0].message
-    })
-  }
-
-  //Check if the email already exists in the database
-  const user = await User.findOne({ email: body.email })
-  if (!user) {
-    return res.status(401).json({
-      ok: false,
-      err: "Invalid Email or password!"
-    })
-  }
-
-  const validPass = await bcrypt.compareSync(body.password, user.password)
-  if (!validPass) {
-    return res.status(401).json({
-      ok: false,
-      err: "Invalid Email or password!"
-    })
-  }
-  
-  //Create access-token
-  const accessToken = jwt.sign(
-    {
-      _id: user._id
-    },
-    process.env.SEED_AUTH,
-    {
-      expiresIn: process.env.TOKEN_EXPIRY
-    }
-  )    
-  //Create refresh-token
-  const refreshToken = jwt.sign(
-    {
-      _id: user._id,
-    },
-    process.env.SEED_AUTH_REFRESH
-  ) 
-  
-  refreshTokens.push(refreshToken)
-  console.log(refreshTokens)
-  res.status(202).json({
-    ok: true,
-    user: user._id,
-    access_token: accessToken,
-    refresh_token: refreshToken
-  });
-} 
-
-exports.tokenRefresh = async (req, res) => {
-
-  const { token } = req.body
-
-  if (!token) {
-    return res.status(401).json({
-      ok: false,
-      err: 'Unauthorized'
-    })
-  } else if (!refreshTokens.includes(token)) {
-    return res.status(403).json({
-      ok: false,
-      err: 'Forbidden bad token'
-    })
-  }
-  //Compare refresh token on server against refresh token from client
-  jwt.verify(token, process.env.SEED_AUTH_REFRESH, (err, user) => {
-
-    if (err) {
-      return res.status(403).json({
+    //Validations
+    const validationErrors = validationResult(req)
+    if (!validationErrors.isEmpty()) {
+      return res.status(400).json({
         ok: false,
-        err: 'Forbidden'
+        err: validationErrors.mapped()
       })
     }
 
-    //Create access-token
-    const accessToken = jwt.sign(
-      {
-        _id: user._id
-      },
-      process.env.SEED_AUTH,
-      {
-        expiresIn: process.env.TOKEN_EXPIRY
-      }
-    )
+    //Check if the email already exists in the database
+    const user = await findUserByEmailService(email).catch((_error) => {
+      throw new Error(`Controller ${_error.message}`)
+    })
+
+    if (!user) {
+      return res.status(401).json({
+        ok: false,
+        err: 'Correo o clave inválida'
+      })
+    }
+
+    const validPass = await bcrypt.compareSync(password, user.password)
+
+    if (!validPass) {
+      return res.status(401).json({
+        ok: false,
+        err: 'Correo o clave inválida'
+      })
+    }
+
+    const [accessToken, refreshToken] = generateTokenService(user._id)
+
+    // we save the token into the white list
+    const tokenWhitelisted = await saveTokenToWhitelistService(refreshToken).catch((_error) => {
+      throw new Error(`Controller ${_error.message}`)
+    })
+
     res.status(202).json({
       ok: true,
       user: user._id,
       access_token: accessToken,
+      refresh_token: refreshToken
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
+  }
+}
+
+exports.tokenRefresh = async (req, res) => {
+  try {
+    const { token } = req.body
+
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        err: 'Sin autorización'
+      })
+    }
+
+    // we save the token into the white list
+    const tokenWhitelisted = await findWhitelistedTokenService(token).catch((_error) => {
+      throw new Error(`Controller ${_error.message}`)
+    })
+
+    if (!tokenWhitelisted) {
+      return res.status(403).json({
+        ok: false,
+        err: 'Token corrupto, prohibido ingresar.'
+      })
+    }
+
+    const accessToken = await verifyTokenService(token).catch((_error) => {
+      throw new Error(`Controller ${_error.message}`)
+    })
+    res.status(202).json({
+      ok: true,
+      access_token: accessToken,
       refresh_token: token
-    });
-
-  })
-
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
+  }
 }
 
 exports.logout = async (req, res) => {
-  const { token } = req.body
-  console.log(req.jwt)
-  refreshTokens = await refreshTokens.filter(t => t !== token)
-  res.status(200).json({
-    ok: true,
-    message: 'Logout Successful'
-  })
+  try {
+    refreshTokens = await updateTokenStatusService(req.body.token, false).catch((_error) => {
+      throw new Error(`Controller ${_error.message}`)
+    })
+
+    if (!refreshTokens) {
+      res.status(400).json({
+        ok: false,
+        message: 'Ha ocurrido un problema al intenar cerrar sesión.'
+      })
+    }
+
+    res.status(200).json({
+      ok: true,
+      message: 'Cierre de sesión exitoso.'
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
+  }
 }
