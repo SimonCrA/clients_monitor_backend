@@ -1,149 +1,149 @@
-const User = require('../models/users.model')
-const bcrypt = require('bcrypt')
+'use-strict'
 
-exports.insert = async (req, res) => {
-  
+const { findUserByEmailService, createNewUserService, listUsersService, getUserByIdService, updateUserService } = require('../services/users.service')
+
+exports.createNewUserController = async (req, res) => {
   try {
+    const { password } = req.body
     //hash Password
-    const hashedPassword = await bcrypt.hashSync(req.body.password, 10)
+    const hashedPassword = await bcrypt.hashSync(password, 10)
     req.body.password = hashedPassword
 
-    const user = new User(req.body)
-    const userSaved = await user.save()
+    const userCreated = await createNewUserService(req.body).catch((_error) => {
+      throw _error
+    })
     res.status(201).json({
       ok: true,
-      user: {
-        id: userSaved._id
-      }
-      })
-  } catch (error) {
-    console.log(error);
+      data: {
+        id: userCreated._id
+      },
+      message: 'Usuario creado satisfactoriamente.'
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
   }
 }
 
-exports.list = (req, res) => {
-  let limit = req.query.limit && req.query.limit <= 100 ? parseInt(req.query.limit) : 10;
-  let page = 0;
-  if (req.query) {
-    if (req.query.page) {
-      req.query.page = parseInt(req.query.page);
-      page = Number.isInteger(req.query.page) ? req.query.page : 0;
-    }
-  }
-  User.find()
-        .limit(limit)
-        .skip(limit * page)
-        .exec( (err, usersDB) => {
-          if (err) {
-            return res.status(500).json({
-              ok: false,
-              err
-            })
-          }
-          res.status(200).json({
-            ok: true,
-            user: usersDB
-          });
-        })
-}
+exports.listUsersController = (req, res) => {
+  try {
+    let { limit, page } = req.query
+    limit = limit && limit <= 100 ? parseInt(limit) : 10
+    page = page && Number.isInteger(page) ? parseInt(page) : 0
 
-exports.getById = (req, res) => {
-  User.findById({_id: req.params.userId}, (err, userDB) =>{
-    if (err) {
-      return res.status(500).json({
-        ok: false,
-        err
-      })
-    }
-    if (!userDB) {
-      return res.status(404).json({
-        ok: false,
-        err: "User not found or it's already deleted"
-      });
-    }
-    res.status(200).json({
-      ok: true,
-      user: userDB
-    });
-  })
-}
-
-exports.patchById = async (req, res) => {
-    if (req.body.password) {
-      //hash Password
-      const hashedPassword = await bcrypt.hashSync(req.body.password, 10)
-      req.body.password = hashedPassword
-    }
-    User.findOneAndUpdate({_id: req.params.userId }, req.body, { useFindAndModify: false }, (err, userUpdated) => {
-      if (err) {
-        return res.status(500).json({
-          ok: false,
-          err
-        })
-      }
-      if (!userUpdated) {
-        return res.status(404).json({
-          ok: false,
-          err: 'User not found or already deleted'
-        });
-      }
-      res.status(200).json({
-        ok: true,
-        user: {
-          id: userUpdated._id
-        }
-      });
+    const USERS = await listUsersService().catch((_error) => {
+      throw _error
     })
 
-}
-
-exports.disableById = (req, res) => {
-  let status = {
-    status: false
+    res.status(201).json({
+      ok: true,
+      data: USERS,
+      message: 'Listado de usuarios.'
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
   }
-  User.findByIdAndUpdate(req.params.userId, status, (err, userDeleted) => {
-    if (err) {
-      return res.status(500).json({
-        ok: false,
-        err: 'bad Request'
-      });
-    }
-    if (!userDeleted) {
-      return res.status(404).json({
-        ok: false,
-        err: 'User not found or already deleted'
-      });
-    }
-    res.status(200).json({
-      ok: true,
-      user: {
-        id: userDeleted._id,
-        message: 'user Disabled'
-      }
-    });
-  })
 }
 
-exports.removeById = (req, res) => {
-  User.findByIdAndDelete(req.params.userId, (err, userDeleted) => {
-    if (err) {
-      return res.status(500).json({
-        ok: false,
-        err,
-      });
-    }
-    if (!userDeleted) {
+exports.getUserByIdController = (req, res) => {
+  try {
+    const { idUser } = req.params.idUser
+    const USER = await getUserByIdService(idUser).catch((_error) => {
+      throw _error
+    })
+
+    if (!USER) {
       return res.status(404).json({
         ok: false,
-        err: 'User not found or already deleted'
-      });
+        data: null,
+        message: 'Usuario no encontrado o no existe.'
+      })
     }
     res.status(200).json({
       ok: true,
-      user: {
-        id: userDeleted._id,
-        message: 'user Deleted'
-      }
-    });
-  })
+      data: USER,
+      message: 'Detalle de usuario.'
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
+  }
+}
+
+exports.UpdateUserController = async (req, res) => {
+  try {
+    const { idUser } = req.params
+    if (req.body.password) {
+      //hash Password
+      req.body.password = await bcrypt.hashSync(req.body.password, 10).catch((_error) => {
+        throw _error
+      })
+    }
+    const USER_UPDATED = await updateUserService(idUser, req.body).catch((_error) => {
+      throw _error
+    })
+    if (!USER_UPDATED) {
+      return res.status(404).json({
+        ok: false,
+        data: null,
+        message: 'Usuario no encontrado.'
+      })
+    }
+    res.status(200).json({
+      ok: true,
+      data: {
+        id: USER_UPDATED._id
+      },
+      message: 'Usuario actualizado.'
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
+  }
+}
+
+exports.deleteUserController = (req, res) => {
+  try {
+    const { idUser } = req.params
+
+    let status = {
+      status: false
+    }
+    const USER_UPDATED = await updateUserService(idUser, status).catch((_error) => {
+      throw _error
+    })
+    if (!USER_UPDATED) {
+      return res.status(404).json({
+        ok: false,
+        data: null,
+        message: 'Usuario no encontrado.'
+      })
+    }
+    res.status(200).json({
+      ok: true,
+      data: {
+        id: USER_UPDATED._id
+      },
+      message: 'Usuario actualizado.'
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
+  }
 }
