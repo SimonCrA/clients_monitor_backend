@@ -12,7 +12,7 @@ const {
   updateTokenStatusService
 } = require('../services/util.service')
 
-exports.signUp = async (req, res) => {
+exports.signUpController = async (req, res) => {
   try {
     let body = req.body
 
@@ -62,7 +62,7 @@ exports.signUp = async (req, res) => {
   }
 }
 
-exports.logIn = async (req, res) => {
+exports.logInController = async (req, res) => {
   try {
     let { email, password } = req.body
 
@@ -118,7 +118,7 @@ exports.logIn = async (req, res) => {
   }
 }
 
-exports.tokenRefresh = async (req, res) => {
+exports.tokenRefreshController = async (req, res) => {
   try {
     const { token } = req.body
 
@@ -158,7 +158,7 @@ exports.tokenRefresh = async (req, res) => {
   }
 }
 
-exports.logout = async (req, res) => {
+exports.logoutController = async (req, res) => {
   try {
     refreshTokens = await updateTokenStatusService(req.body.token, false).catch((_error) => {
       throw new Error(`Controller ${_error.message}`)

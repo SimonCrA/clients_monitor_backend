@@ -8,7 +8,8 @@ exports.verifyValidJWT = (req, res, next) => {
       if (authorization[0] !== 'Bearer') {
         return res.status(401).json({
           ok: false,
-          err: 'No autorizado, necesita un token válido.'
+          data: null,
+          message: 'No autorizado, necesita un token válido.'
         })
       } else {
         req.jwt = jwt.verify(authorization[1], process.env.SEED_AUTH)
@@ -17,13 +18,15 @@ exports.verifyValidJWT = (req, res, next) => {
     } catch (error) {
       return res.status(401).json({
         ok: false,
-        err: 'No autorizado, necesita un token válido. ' + error.message
+        data: null,
+        message: 'No autorizado, necesita un token válido. ' + error.message
       })
     }
   } else {
     return res.status(401).json({
       ok: false,
-      err: 'Es necesario enviar un token de autenticación.'
+      data: null,
+      message: 'Es necesario enviar un token de autenticación.'
     })
   }
 }

@@ -1,10 +1,11 @@
 'use-strict'
 const User = require('../models/users.model')
+const bcrypt = require('bcrypt')
 
 exports.findUserByEmailService = async (_email) => {
   try {
     //Check if the email already exists in the database
-    return await User.findOne({ email: _email, status: true }).catch((_error) => {
+    return await User.findOne({ email: _email }).catch((_error) => {
       throw new Error(_error.message)
     })
   } catch (_error) {
@@ -22,26 +23,18 @@ exports.createNewUserService = async (_data) => {
   }
 }
 
-exports.listUsersService = async (_limit = 10, _page = 0) => {
+exports.listUsersService = async (_limit, _page) => {
   try {
-    const USER_LIST = await User.find({ status: true })
-      .select('role name lastname email')
+    const USER_LIST = await User.find()
       .limit(_limit)
       .skip(_limit * _page)
       .exec()
       .catch((_error) => {
         throw _error
       })
-
-    const USER_COUNT = await User.find()
-      .countDocuments({})
-      .catch((_error) => {
-        throw _error
-      })
-
     return {
-      count: USER_COUNT,
-      data: USER_LIST
+      count: await USER_LIST.count(),
+      data: await USER_LIST.toArray()
     }
   } catch (_error) {
     throw new Error(`userService ${_error}`)
@@ -50,7 +43,7 @@ exports.listUsersService = async (_limit = 10, _page = 0) => {
 
 exports.getUserByIdService = async (_id) => {
   try {
-    return await User.findById({ _id, status: true }).catch((_error) => {
+    return await User.findById({ _id }).catch((_error) => {
       throw _error
     })
   } catch (_error) {
@@ -60,7 +53,7 @@ exports.getUserByIdService = async (_id) => {
 
 exports.updateUserService = async (_id, _data) => {
   try {
-    return await User.findOneAndUpdate({ _id, status: true }, _data, { useFindAndModify: false }).catch((_error) => {
+    return await User.findOneAndUpdate({ _id }, _data, { useFindAndModify: false }).catch((_error) => {
       throw _error
     })
   } catch (_error) {

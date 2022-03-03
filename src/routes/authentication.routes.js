@@ -1,12 +1,11 @@
 'use-strict'
 
-const { logIn, logout, signUp, tokenRefresh } = require('../controllers/authentication.controller')
+const { logInController, logoutController, signUpController, tokenRefreshController } = require('../controllers/authentication.controller')
 const { logInValidationMiddleware, signUpValidationMiddleware } = require('../middlewares/auth/auth.middleware')
-// const AuthorizationMiddleware = require("../middlewares/authorization.middleware");
 
 exports.routesConfig = (app) => {
-  app.post('/api/signup', signUpValidationMiddleware, signUp)
-  app.post('/api/login', logInValidationMiddleware, logIn)
-  app.post('/api/token', tokenRefresh)
-  app.post('/api/logout', logout)
+  app.post('/api/signup', signUpValidationMiddleware, signUpController)
+  app.post('/api/login', logInValidationMiddleware, logInController)
+  app.post('/api/token', tokenRefreshController)
+  app.post('/api/logout', logoutController)
 }

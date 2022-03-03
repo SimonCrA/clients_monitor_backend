@@ -1,10 +1,21 @@
 'use-strict'
 
-const { findUserByEmailService, createNewUserService, listUsersService, getUserByIdService, updateUserService } = require('../services/users.service')
+const bcrypt = require('bcrypt')
+const { createNewUserService, listUsersService, getUserByIdService, updateUserService } = require('../services/users.service')
+const { validationResult } = require('express-validator')
 
 exports.createNewUserController = async (req, res) => {
   try {
+    //Validations
+    const validationErrors = validationResult(req)
+    if (!validationErrors.isEmpty()) {
+      return res.status(400).json({
+        ok: false,
+        err: validationErrors.mapped()
+      })
+    }
     const { password } = req.body
+
     //hash Password
     const hashedPassword = await bcrypt.hashSync(password, 10)
     req.body.password = hashedPassword
@@ -28,9 +39,63 @@ exports.createNewUserController = async (req, res) => {
   }
 }
 
-exports.listUsersController = (req, res) => {
+exports.UpdateUserController = async (req, res) => {
   try {
+    //Validations
+    const validationErrors = validationResult(req)
+    if (!validationErrors.isEmpty()) {
+      return res.status(400).json({
+        ok: false,
+        err: validationErrors.mapped()
+      })
+    }
+
+    const { userId } = req.params
+    const { password } = req.body
+
+    if (password) {
+      //hash Password
+      req.body.password = await bcrypt.hashSync(password, 10)
+    }
+    const USER_UPDATED = await updateUserService(userId, req.body).catch((_error) => {
+      throw _error
+    })
+    if (!USER_UPDATED) {
+      return res.status(404).json({
+        ok: false,
+        data: null,
+        message: 'Usuario no encontrado.'
+      })
+    }
+    res.status(200).json({
+      ok: true,
+      data: {
+        id: USER_UPDATED._id
+      },
+      message: 'Usuario actualizado.'
+    })
+  } catch (_error) {
+    console.log(_error)
+    res.status(500).json({
+      ok: false,
+      message: 'Ha ocurrido un error grave'
+    })
+  }
+}
+
+exports.listUsersController = async (req, res) => {
+  try {
+    //Validations
+    const validationErrors = validationResult(req)
+    if (!validationErrors.isEmpty()) {
+      return res.status(400).json({
+        ok: false,
+        err: validationErrors.mapped()
+      })
+    }
+
     let { limit, page } = req.query
+
     limit = limit && limit <= 100 ? parseInt(limit) : 10
     page = page && Number.isInteger(page) ? parseInt(page) : 0
 
@@ -38,7 +103,7 @@ exports.listUsersController = (req, res) => {
       throw _error
     })
 
-    res.status(201).json({
+    res.status(200).json({
       ok: true,
       data: USERS,
       message: 'Listado de usuarios.'
@@ -52,10 +117,19 @@ exports.listUsersController = (req, res) => {
   }
 }
 
-exports.getUserByIdController = (req, res) => {
+exports.getUserByIdController = async (req, res) => {
   try {
-    const { idUser } = req.params.idUser
-    const USER = await getUserByIdService(idUser).catch((_error) => {
+    //Validations
+    const validationErrors = validationResult(req)
+    if (!validationErrors.isEmpty()) {
+      return res.status(400).json({
+        ok: false,
+        err: validationErrors.mapped()
+      })
+    }
+
+    const { userId } = req.params
+    const USER = await getUserByIdService(userId).catch((_error) => {
       throw _error
     })
 
@@ -80,49 +154,23 @@ exports.getUserByIdController = (req, res) => {
   }
 }
 
-exports.UpdateUserController = async (req, res) => {
+exports.deleteUserController = async (req, res) => {
   try {
-    const { idUser } = req.params
-    if (req.body.password) {
-      //hash Password
-      req.body.password = await bcrypt.hashSync(req.body.password, 10).catch((_error) => {
-        throw _error
-      })
-    }
-    const USER_UPDATED = await updateUserService(idUser, req.body).catch((_error) => {
-      throw _error
-    })
-    if (!USER_UPDATED) {
-      return res.status(404).json({
+    //Validations
+    const validationErrors = validationResult(req)
+    if (!validationErrors.isEmpty()) {
+      return res.status(400).json({
         ok: false,
-        data: null,
-        message: 'Usuario no encontrado.'
+        err: validationErrors.mapped()
       })
     }
-    res.status(200).json({
-      ok: true,
-      data: {
-        id: USER_UPDATED._id
-      },
-      message: 'Usuario actualizado.'
-    })
-  } catch (_error) {
-    console.log(_error)
-    res.status(500).json({
-      ok: false,
-      message: 'Ha ocurrido un error grave'
-    })
-  }
-}
 
-exports.deleteUserController = (req, res) => {
-  try {
-    const { idUser } = req.params
+    const { userId } = req.params
 
     let status = {
       status: false
     }
-    const USER_UPDATED = await updateUserService(idUser, status).catch((_error) => {
+    const USER_UPDATED = await updateUserService(userId, status).catch((_error) => {
       throw _error
     })
     if (!USER_UPDATED) {
@@ -137,7 +185,7 @@ exports.deleteUserController = (req, res) => {
       data: {
         id: USER_UPDATED._id
       },
-      message: 'Usuario actualizado.'
+      message: 'Usuario eliminado.'
     })
   } catch (_error) {
     console.log(_error)
