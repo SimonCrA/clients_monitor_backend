@@ -1,18 +1,24 @@
 'use-strict'
 
-const { findUserByEmailService, createNewUserService, listUsersService, getUserByIdService, updateUserService } = require('../services/users.service')
+const {
+  createNewClientService,
+  findClientByEmailService,
+  getCleintByIdService,
+  listClientsService,
+  updateClientService
+} = require('../services/clients.service')
 
 exports.createNewClientController = async (req, res) => {
   try {
-    const userCreated = await createNewUserService(req.body).catch((_error) => {
+    const clientCreated = await createNewClientService(req.body).catch((_error) => {
       throw _error
     })
     res.status(201).json({
       ok: true,
       data: {
-        id: userCreated._id
+        id: clientCreated._id
       },
-      message: 'Usuario creado satisfactoriamente.'
+      message: 'Cliente creado satisfactoriamente.'
     })
   } catch (_error) {
     console.log(_error)
@@ -29,14 +35,14 @@ exports.listClientsController = (req, res) => {
     limit = limit && limit <= 100 ? parseInt(limit) : 10
     page = page && Number.isInteger(page) ? parseInt(page) : 0
 
-    const USERS = await listUsersService().catch((_error) => {
+    const USERS = await listClientsService().catch((_error) => {
       throw _error
     })
 
     res.status(201).json({
       ok: true,
       data: USERS,
-      message: 'Listado de usuarios.'
+      message: 'Listado de clientes.'
     })
   } catch (_error) {
     console.log(_error)
@@ -49,8 +55,8 @@ exports.listClientsController = (req, res) => {
 
 exports.getClientByIdController = (req, res) => {
   try {
-    const { idUser } = req.params.idUser
-    const USER = await getUserByIdService(idUser).catch((_error) => {
+    const { idClient } = req.params
+    const USER = await getCleintByIdService(idClient).catch((_error) => {
       throw _error
     })
 
@@ -58,13 +64,13 @@ exports.getClientByIdController = (req, res) => {
       return res.status(404).json({
         ok: false,
         data: null,
-        message: 'Usuario no encontrado o no existe.'
+        message: 'Cliente no encontrado o no existe.'
       })
     }
     res.status(200).json({
       ok: true,
       data: USER,
-      message: 'Detalle de usuario.'
+      message: 'Detalle del cliente.'
     })
   } catch (_error) {
     console.log(_error)
@@ -77,29 +83,29 @@ exports.getClientByIdController = (req, res) => {
 
 exports.UpdateClientController = async (req, res) => {
   try {
-    const { idUser } = req.params
+    const { idClient } = req.params
     if (req.body.password) {
       //hash Password
       req.body.password = await bcrypt.hashSync(req.body.password, 10).catch((_error) => {
         throw _error
       })
     }
-    const USER_UPDATED = await updateUserService(idUser, req.body).catch((_error) => {
+    const CLIENT_UPDATED = await updateClientService(idClient, req.body).catch((_error) => {
       throw _error
     })
-    if (!USER_UPDATED) {
+    if (!CLIENT_UPDATED) {
       return res.status(404).json({
         ok: false,
         data: null,
-        message: 'Usuario no encontrado.'
+        message: 'Cliente no encontrado.'
       })
     }
     res.status(200).json({
       ok: true,
       data: {
-        id: USER_UPDATED._id
+        id: CLIENT_UPDATED._id
       },
-      message: 'Usuario actualizado.'
+      message: 'Cliente actualizado.'
     })
   } catch (_error) {
     console.log(_error)
@@ -112,27 +118,27 @@ exports.UpdateClientController = async (req, res) => {
 
 exports.deleteClientController = (req, res) => {
   try {
-    const { idUser } = req.params
+    const { idClient } = req.params
 
     let status = {
       status: false
     }
-    const USER_UPDATED = await updateUserService(idUser, status).catch((_error) => {
+    const CLIENT_UPDATED = await updateClientService(idClient, status).catch((_error) => {
       throw _error
     })
-    if (!USER_UPDATED) {
+    if (!CLIENT_UPDATED) {
       return res.status(404).json({
         ok: false,
         data: null,
-        message: 'Usuario no encontrado.'
+        message: 'Cliente no encontrado.'
       })
     }
     res.status(200).json({
       ok: true,
       data: {
-        id: USER_UPDATED._id
+        id: CLIENT_UPDATED._id
       },
-      message: 'Usuario actualizado.'
+      message: 'Cliente actualizado.'
     })
   } catch (_error) {
     console.log(_error)

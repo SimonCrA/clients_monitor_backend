@@ -1,11 +1,11 @@
 'use-strict'
-const User = require('../models/users.model')
+const Clients = require('../models/clients.model')
 const bcrypt = require('bcrypt')
 
-exports.findUserByEmailService = async (_email) => {
+exports.findClientByEmailService = async (_email) => {
   try {
     //Check if the email already exists in the database
-    return await User.findOne({ email: _email }).catch((_error) => {
+    return await Clients.findOne({ email: _email }).catch((_error) => {
       throw new Error(_error.message)
     })
   } catch (_error) {
@@ -13,50 +13,58 @@ exports.findUserByEmailService = async (_email) => {
   }
 }
 
-exports.createNewUserService = async (_data) => {
+exports.createNewClientService = async (_data) => {
   try {
-    return await new User(_data).save().catch((_error) => {
+    return await new Clients(_data).save().catch((_error) => {
       throw _error
     })
   } catch (_error) {
-    throw new Error(`userService ${_error}`)
+    throw new Error(`clientService ${_error}`)
   }
 }
 
-exports.listUsersService = async (_limit, _page) => {
+exports.listClientsService = async (_limit, _page) => {
   try {
-    const USER_LIST = await User.find()
+    const USER_LIST = await Clients.find({ status: true })
+      .select('role name lastname email')
       .limit(_limit)
       .skip(_limit * _page)
       .exec()
       .catch((_error) => {
         throw _error
       })
+
+    const USER_COUNT = await Clients.find()
+      .countDocuments({})
+      .catch((_error) => {
+        throw _error
+      })
+
     return {
-      count: await USER_LIST.count(),
-      data: await USER_LIST.toArray()
+      count: USER_COUNT,
+      data: USER_LIST
     }
   } catch (_error) {
-    throw new Error(`userService ${_error}`)
+    throw new Error(`clientService -> ${_error}`)
   }
 }
 
-exports.getUserByIdService = async (_id) => {
+exports.getCleintByIdService = async (_id) => {
   try {
-    return await User.findById({ _id }).catch((_error) => {
+    return await Clients.findById({ _id }).catch((_error) => {
       throw _error
     })
   } catch (_error) {
-    throw new Error(`userService ${_error}`)
+    throw new Error(`clientService -> ${_error}`)
   }
 }
 
-exports.updateUserService = async (_id, _data) => {
+exports.updateClientService = async (_id, _data) => {
   try {
-    return await User.findOneAndUpdate({ _id }, _data, { useFindAndModify: false }).catch((_error) => {
+    return await Clients.findOneAndUpdate({ _id }, _data, { useFindAndModify: false }).catch((_error) => {
       throw _error
     })
   } catch (_error) {
-    throw new Error(`userService ${_error}`)
+    throw new Error(`clientService -> ${_error}`)
   }
 }
